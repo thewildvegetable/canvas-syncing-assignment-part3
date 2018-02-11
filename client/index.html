@@ -74,7 +74,7 @@
                 setInterval(() =>{
                     const time = new Date().getTime();
                     draws[user].lastUpdate = time;
-                    draws[user].x += 5;
+                    draws[user].x += 20;
                     socket.emit('draw', {name: user, coords: draws[user] });
                     draw();
                 }, 3000);
