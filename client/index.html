@@ -1,13 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <style>
+        #mainCanvas {
+             background: #ffffff;
+             position:absolute;
+             z-index: 0;
+             left: 10px;
+             top: 10px;
+             box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+        }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
     <script type="text/babel" >
         "use strict";
-    
+        let socket;
+        let ctx;
+        let canvas;
+        const user = `user${Math.floor((Math.random()*1000) + 1)}`;
+        let draws = {};
+        let mouseDown = false;
+        
+        const draw = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            let keys = Object.keys(draws);
+            
+            for (let i = 0; i < keys.length; i++){
+                const drawCall = draws[keys[i]];
+                ctx.fillStyle = drawCall.color;
+                ctx.fillRect(drawCall.x, drawCall.y, drawCall.width, drawCall.height);
+            }
+            ctx.fillStyle = "white";
+        };
+        
+        const setup = () => {
+            const time = new Date().getTime();
+            let x = Math.floor((Math.random()*300) + 10);
+            let y = Math.floor((Math.random()*300) + 10);
+            draws[user] = {lastUpdate: time, x: x, y: y, width: 100, height: 100, color: "black"};
+        };
+        
+        const handleMessage = (data) => {
+            if (!draws[data.name]){
+                draws[data.name] = data.coords;
+                draws[data.name].color = "red";
+            }
+            else if (data.coords.lastUpdate > draws[data.name].lastUpdate){
+                draws[data.name] = data.coords;
+                draws[data.name].color = "red";
+            }
+            draw();
+        };
+        
+        const init = () => {
+            // set up canvas stuff
+			canvas = document.querySelector('canvas');
+            //canvas resizing code from https://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
+            var width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+            var height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+            canvas.height = height;
+            canvas.width = width;
+			ctx = canvas.getContext("2d");
+            setup();
+            
+            socket = io.connect();
+            
+            socket.on('connect', () => {
+                console.log('connecting');
+                
+                socket.emit('join', draws);
+                setInterval(() =>{
+                    const time = new Date().getTime();
+                    draws[user].lastUpdate = time;
+                    draws[user].x += 5;
+                    socket.emit('draw', {name: user, coords: draws[user] });
+                    draw();
+                }, 3000);
+            });
+            
+            socket.on('msg', (data) => {
+                handleMessage(data);
+            });
+        };
+        
+        window.onload = init;
     </script>
 </head>
 <body>
-
+    <canvas id="mainCanvas" width="700" height="500">
+	Get a real browser!
+	</canvas>
 </body>
 </html>
